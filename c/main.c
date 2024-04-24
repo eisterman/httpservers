@@ -4,6 +4,9 @@
 #include <string.h>
 #include <sys/socket.h>
 #include <unistd.h>
+
+#include "parsereq.h"
+
 #define PORT 8080
 #define FPATH(x) "../files/" #x
 
@@ -32,6 +35,7 @@ int main(void) {
         return 1;
     }
     while(1) {
+        FILE *file = NULL;
         int new_socket;
         if((new_socket = accept(server_fd, (struct sockaddr*)&address, &addrlen)) < 0) {
             fprintf(stderr, "Error accepting new socket");
@@ -58,9 +62,20 @@ int main(void) {
         // Add the final null character, you are guaranteed to have the space to do so
         *writer = 0;
         writer++;
+        // Print the buffer
         printf("%ld: %s\nEOF\n", valread, buffer);
+        // Parse request
+        HTTPReq req = {0};
+        int parserr;
+        if ((parserr = parsebuf(&req, buffer, valread)) < 0) {
+            fprintf(stderr, "Error parsing request: %d", parserr);
+            goto terminate;
+        }
+        // TODO: TODO
+        printreq(&req);
+        // Render Test Response
         char* filename = FPATH(index.html);
-        FILE *file = fopen(filename, "r");
+        file = fopen(filename, "r");
         if(file == NULL) {
             fprintf(stderr, "Error opening file %s", filename);
             goto terminate;
@@ -81,7 +96,7 @@ int main(void) {
         }
         printf("Index sent\n");
         terminate:
-        fclose(file);
+        if(file != NULL) fclose(file);
         close(new_socket);
         free(buffer);
     }
